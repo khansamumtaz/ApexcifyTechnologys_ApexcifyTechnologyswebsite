@@ -38,7 +38,7 @@ The goal of this project is to create a **company-level premium website UI** usi
 - **HTML5**
 - **CSS3**
 - **JavaScript (Vanilla JS)**
-- 
+  
 ## Project Structure
 ApexcifyTechnologys_Website/
 │
@@ -117,7 +117,7 @@ Through this project, I practiced:
 - UI/UX enhancement techniques
 - Interactive frontend development
   
-## 👩‍💻 Author
+## Author
 **Khansa Mumtaz**  
 Frontend Developer / Web Development Intern
 
