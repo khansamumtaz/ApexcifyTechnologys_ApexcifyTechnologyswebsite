@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Budget Planner</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+    --primary: #2ecc71;
+    --secondary: #27ae60;
+    --danger: #e74c3c;
+    --bg-light: #f4f6f9;
+    --bg-dark: #2c3e50;
+    --text-dark: #2c3e50;
+    --text-light: #ecf0f1;
+}
+
+body {
+    margin:0;
+    font-family: Arial, sans-serif;
+    background: var(--bg-light);
+    transition: background 0.3s;
+}
+.dark-mode body { background: var(--bg-dark); color: var(--text-light);}
+.container {
+    max-width: 900px;
+    margin: auto;
+    padding: 20px;
+}
+.card {
+    background: white;
+    padding: 20px;
+    margin-top: 20px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transition: background 0.3s, color 0.3s;
+}
+.dark-mode .card { background: #34495e; color: var(--text-light); }
+h1,h2,h3 { color: var(--text-dark); }
+.dark-mode h1,h2,h3 { color: var(--text-light); }
+input, select, button {
+    padding: 10px;
+    margin: 5px 0;
+    width: 100%;
+    border-radius:5px;
+    border:1px solid #ccc;
+}
+button { background: var(--primary); color:white; border:none; cursor:pointer;}
+button:hover { background: var(--secondary); }
+.btn-danger { background: var(--danger);}
+.stats {
+    display:flex;
+    gap:15px;
+    flex-wrap: wrap;
+}
+.stat-box {
+    flex:1;
+    background:#ecf0f1;
+    padding:15px;
+    border-radius:8px;
+    text-align:center;
+}
+.dark-mode .stat-box { background: #3d566e; }
+table { width:100%; border-collapse: collapse; margin-top:10px;}
+th, td { padding:10px; border-bottom:1px solid #ccc; text-align:center;}
+.logout, .dark-toggle { float:right; margin-left:10px;}
+.hidden { display:none; }
+.search-box { margin-top:10px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SECTION -->
+<div class="container" id="loginSection">
+    <div class="card">
+        <h1>Budget Planner</h1>
+        <p>Track and manage your money</p>
+        <input type="email" id="email" placeholder="Enter Email">
+        <button onclick="login()">Login / Register</button>
+    </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="container hidden" id="dashboard">
+    <button class="logout btn-danger" onclick="logout()">Logout</button>
+    <button class="dark-toggle" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+    <h1>Welcome, <span id="user"></span></h1>
+
+    <!-- SUMMARY -->
+    <div class="stats">
+        <div class="stat-box">
+            <h3>Total Income</h3>
+            <h2>Rs <span id="income">0</span></h2>
+        </div>
+        <div class="stat-box">
+            <h3>Total Expense</h3>
+            <h2>Rs <span id="expense">0</span></h2>
+        </div>
+        <div class="stat-box">
+            <h3>Balance</h3>
+            <h2>Rs <span id="balance">0</span></h2>
+        </div>
+    </div>
+
+    <!-- ADD TRANSACTION -->
+    <div class="card">
+        <h2>Add Transaction</h2>
+        <input type="text" id="title" placeholder="Description">
+        <input type="number" id="amount" placeholder="Amount">
+        <select id="type">
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+        </select>
+        <select id="category">
+            <option value="General">General</option>
+            <option value="Food">Food</option>
+            <option value="Travel">Travel</option>
+            <option value="Bills">Bills</option>
+            <option value="Shopping">Shopping</option>
+            <option value="Salary">Salary</option>
+        </select>
+        <button onclick="addTransaction()">Add</button>
+    </div>
+
+    <!-- SEARCH -->
+    <div class="search-box card">
+        <input type="text" id="searchInput" placeholder="Search Transactions" oninput="filterTransactions()">
+    </div>
+
+    <!-- CHART -->
+    <div class="card">
+        <h2>Expense Chart</h2>
+        <canvas id="chart"></canvas>
+    </div>
+
+    <!-- TRANSACTION HISTORY -->
+    <div class="card">
+        <h2>Transaction History</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="records"></tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+let darkMode = false;
+const ctx = document.getElementById('chart').getContext('2d');
+let pieChart;
+
+// LOGIN
+function login(){
+    if(email.value===""){ alert("Enter email"); return; }
+    localStorage.setItem("userEmail", email.value);
+    showDashboard();
+}
+
+// SHOW DASHBOARD
+function showDashboard(){
+    loginSection.classList.add("hidden");
+    dashboard.classList.remove("hidden");
+    user.innerText = localStorage.getItem("userEmail");
+    render();
+}
+
+// LOGOUT
+function logout(){ location.reload(); }
+
+// ADD TRANSACTION
+function addTransaction(){
+    if(title.value==="" || amount.value===""){ alert("Fill all fields"); return; }
+    transactions.push({
+        title:title.value,
+        amount:Number(amount.value),
+        type:type.value,
+        category: category.value
+    });
+    localStorage.setItem("transactions", JSON.stringify(transactions));
+    title.value=""; amount.value=""; render();
+}
+
+// DELETE TRANSACTION
+function deleteTransaction(index){
+    transactions.splice(index,1);
+    localStorage.setItem("transactions", JSON.stringify(transactions));
+    render();
+}
+
+// RENDER DASHBOARD
+function render(){
+    let incomeTotal=0, expenseTotal=0;
+    records.innerHTML="";
+    const expenseCategories = {};
+    transactions.forEach((t,i)=>{
+        if(t.type==="income") incomeTotal+=t.amount;
+        else{
+            expenseTotal+=t.amount;
+            if(expenseCategories[t.category]) expenseCategories[t.category]+=t.amount;
+            else expenseCategories[t.category]=t.amount;
+        }
+        records.innerHTML += `
+        <tr>
+            <td>${t.title}</td>
+            <td>${t.amount}</td>
+            <td>${t.type}</td>
+            <td>${t.category}</td>
+            <td><button class="btn-danger" onclick="deleteTransaction(${i})">Delete</button></td>
+        </tr>`;
+    });
+    income.innerText = incomeTotal;
+    expense.innerText = expenseTotal;
+    balance.innerText = incomeTotal - expenseTotal;
+
+    // Pie chart
+    if(pieChart) pieChart.destroy();
+    pieChart = new Chart(ctx, {
+        type:'pie',
+        data:{
+            labels:Object.keys(expenseCategories),
+            datasets:[{
+                data: Object.values(expenseCategories),
+                backgroundColor:['#e74c3c','#3498db','#f1c40f','#9b59b6','#1abc9c']
+            }]
+        },
+        options:{ responsive:true, plugins:{legend:{position:'bottom'}} }
+    });
+
+    // Monthly limit alert
+    const monthlyLimit = 50000;
+    if(expenseTotal>monthlyLimit){
+        alert("Warning: You exceeded your monthly expense limit!");
+    }
+}
+
+// SEARCH TRANSACTIONS
+function filterTransactions(){
+    const query = searchInput.value.toLowerCase();
+    records.querySelectorAll("tr").forEach(tr=>{
+        const title = tr.children[0].innerText.toLowerCase();
+        const category = tr.children[3].innerText.toLowerCase();
+        tr.style.display = (title.includes(query) || category.includes(query)) ? "" : "none";
+    });
+}
+
+// DARK MODE
+function toggleDarkMode(){
+    darkMode = !darkMode;
+    document.body.classList.toggle("dark-mode");
+}
+
+// AUTO SHOW DASHBOARD IF USER ALREADY LOGGED IN
+if(localStorage.getItem("userEmail")){
+    showDashboard();
+}
+</script>
+
+</body>
+</html>
