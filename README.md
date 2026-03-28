@@ -1,4 +1,4 @@
-# ApexcifyTechnologyswebsite
+# Apexcify Technologys Website
 A modern, responsive, and premium-looking company website built using **HTML, CSS, and JavaScript**.  
 This project was created as part of an internship/web development task to showcase professional front-end design, interactivity, and responsiveness.
 
